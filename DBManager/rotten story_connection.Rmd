@@ -6,7 +6,7 @@ output: html_document
 ---
 
 ```{r}
-i# Install package yang diperlukan
+# Install package yang diperlukan
 install.packages(c("DBI", "RMySQL", "glue")) 
 library(DBI)
 library(RMySQL)
@@ -57,16 +57,10 @@ novel <- read.csv("D:\\S2\\MDS\\Praktikum\\Project-mds-klp3\\Dataset 3\\novel.cs
 penulis <- read.csv("D:\\S2\\MDS\\Praktikum\\Project-mds-klp3\\Dataset 3\\penulis.csv")
 penerbit <- read.csv("D:\\S2\\MDS\\Praktikum\\Project-mds-klp3\\Dataset 3\\penerbit.csv")
 ulasan <- read.csv("D:\\S2\\MDS\\Praktikum\\Project-mds-klp3\\Dataset 3\\ulasan.csv")
+genre <- read.csv("D:\\S2\\MDS\\Praktikum\\Project-mds-klp3\\Dataset 3\\genre.csv")
+novel_genre <- read.csv("D:\\S2\\MDS\\Praktikum\\Project-mds-klp3\\Dataset 3\\novel_genre.csv")
 ```
 
-
-```{r}
-dbWriteTable(db_config, "novel", novel, append = TRUE, row.names = FALSE)
-dbWriteTable(db_config, "penerbit", penerbit, append = TRUE, row.names = FALSE)
-dbWriteTable(db_config, "penulis", penulis, append = TRUE, row.names = FALSE)
-dbWriteTable(db_config, "ulasan", ulasan, append = TRUE, row.names = FALSE)
-
-```
 
 ```{r}
 dbExecute(con, "CREATE DATABASE IF NOT EXISTS rotten_story")
@@ -81,10 +75,12 @@ dbExecute(con, "SET GLOBAL local_infile = TRUE;")
 # 3.1 Tabel dasar tanpa foreign key
 dbWriteTable(con, "penulis", penulis, overwrite = TRUE)
 dbWriteTable(con, "penerbit", penerbit, overwrite = TRUE)
+dbWriteTable(con, "genre", genre, overwrite = TRUE)
 
 # 3.2 Tabel yang bergantung pada tabel dasar
 dbWriteTable(con, "ulasan", ulasan, overwrite = TRUE)
 dbWriteTable(con, "novel", novel, overwrite = TRUE)
+dbWriteTable(con, "novel_genre", novel_genre, overwrite = TRUE)
 ```
 
 ```{r}
@@ -92,6 +88,8 @@ dbGetQuery(con, "DESCRIBE novel")
 dbGetQuery(con, "DESCRIBE penulis")
 dbGetQuery(con, "DESCRIBE penerbit")
 dbGetQuery(con, "DESCRIBE ulasan")
+dbGetQuery(con, "DESCRIBE genre")
+dbGetQuery(con, "DESCRIBE novel_genre")
 ```
 
 
@@ -106,6 +104,10 @@ ADD FOREIGN KEY (id_penerbit) REFERENCES penerbit(id_penerbit),
 
 ALTER TABLE ulasan
 ADD FOREIGN KEY (id_novel) REFERENCES novel(id_novel),
+
+ALTER TABLE novel_genre
+ADD FOREIGN KEY (id_novel) REFERENCES novel(id_novel),
+ADD FOREIGN KEY (id_genre) REFERENCES novel(id_genre),
 "
 
 # Execute the column modifications
@@ -125,6 +127,12 @@ MODIFY id_penerbit CHAR(10);
 
 ALTER TABLE ulasan 
 MODIFY id_novel CHAR(10);
+
+ALTER TABLE novel_genre 
+MODIFY id_novel CHAR(10),
+MODIFY id_genre CHAR(10);
+
+
 "
 
 # Eksekusi perubahan tipe data
