@@ -1,0 +1,283 @@
+---
+title: "DBManager"
+author: "Yeky Abil Nizar"
+date: "2025-03-03"
+output: html_document
+---
+
+```{r}
+# Install package yang diperlukan
+library(DBI)
+library(RMySQL)
+library(dplyr)
+library(readr)
+library(glue)
+```
+
+
+
+```{r}
+# 1. Konfigurasi Database DBngin
+db_config <- list(
+  host = "127.0.0.1",
+   port = 3306,          # Port MySQL di DBngin
+   user = "root",
+   password = "",
+   dbname = "rotten_story"    # Nama database yang akan dibuat
+ )
+```
+
+
+
+```{r}
+# 2. Membuat koneksi ke MySQL server (tanpa database spesifik)
+con <- dbConnect(
+  MySQL(),
+  host = db_config$host,
+  port = db_config$port,
+  user = db_config$user,
+  password = db_config$password,
+  dbname = db_config$dbname,
+  local_infile = TRUE
+ )
+```
+
+```{r}
+#3. Membuat database jika belum ada
+tryCatch({
+  dbExecute(con, glue("CREATE DATABASE IF NOT EXISTS {db_config$dbname}"))
+  message("Database ", db_config$dbname, " berhasil dibuat/ditemukan")
+ }, error = function(e) {
+  message("Gagal membuat database: ", e$message)
+ })
+```
+
+```{r}
+novel <- read.csv('novel.csv')
+penulis <- read.csv('penulis.csv')
+penerbit <- read.csv('penerbit.csv')
+ulasan <- read.csv('ulasan.csv')
+genre <- read.csv('genre.csv')
+novel_genre <- read.csv('novel_genre.csv')
+```
+
+```{r}
+dbExecute(con, "CREATE DATABASE IF NOT EXISTS rotten_story")
+```
+
+```{r}
+# Create and select the database
+dbExecute(con, paste("CREATE DATABASE IF NOT EXISTS", db_config$dbname))
+dbExecute(con, paste("USE", db_config$dbname))
+dbExecute(con, "SET GLOBAL local_infile = TRUE;")
+
+# 3.1 Tabel dasar tanpa foreign key
+dbWriteTable(con, "penulis", penulis, overwrite = TRUE)
+dbWriteTable(con, "penerbit", penerbit, overwrite = TRUE)
+dbWriteTable(con, "genre", genre, overwrite = TRUE)
+
+# 3.2 Tabel yang bergantung pada tabel dasar
+dbWriteTable(con, "ulasan", ulasan, overwrite = TRUE)
+dbWriteTable(con, "novel", novel, overwrite = TRUE)
+dbWriteTable(con, "novel_genre", novel_genre, overwrite = TRUE)
+```
+
+```{r}
+dbGetQuery(con, "DESCRIBE novel")
+dbGetQuery(con, "DESCRIBE penulis")
+dbGetQuery(con, "DESCRIBE penerbit")
+dbGetQuery(con, "DESCRIBE ulasan")
+dbGetQuery(con, "DESCRIBE genre")
+dbGetQuery(con, "DESCRIBE novel_genre")
+```
+
+```{r}
+alter_columns_query <- "
+ALTER TABLE novel 
+MODIFY id_novel CHAR(10),
+MODIFY id_penulis CHAR(10),
+MODIFY id_penerbit CHAR(10);
+
+ALTER TABLE ulasan 
+MODIFY id_novel CHAR(10);
+
+ALTER TABLE novel_genre 
+MODIFY id_novel CHAR(10),
+MODIFY id_genre CHAR(10);
+
+
+"
+
+# Eksekusi perubahan tipe data
+for(q in strsplit(alter_columns_query, ";")[[1]]) {
+  if(nchar(q) > 5) dbExecute(con, q)
+}
+```
+
+```{r}
+# 4. Membuat indeks dan constraint foreign key
+# (Di MySQL, foreign key harus dibuat manual melalui query)
+query <- "
+ALTER TABLE novel
+ADD FOREIGN KEY (id_penulis) REFERENCES penulis(id_penulis),
+ADD FOREIGN KEY (id_penerbit) REFERENCES penerbit(id_penerbit),
+
+
+ALTER TABLE ulasan
+ADD FOREIGN KEY (id_novel) REFERENCES novel(id_novel),
+
+ALTER TABLE novel_genre
+ADD FOREIGN KEY (id_novel) REFERENCES novel(id_novel),
+ADD FOREIGN KEY (id_genre) REFERENCES novel(id_genre),
+"
+
+# Execute the column modifications
+for(q in strsplit(alter_columns_query, ";")[[1]]) {
+  if(nchar(q) > 5) dbSendQuery(con, q)
+}
+```
+
+```{r}
+# 5. Verifikasi tabel
+dbListTables(con)
+```
+
+```{r}
+# 5. Analisis struktur database
+tryCatch({
+  # Buka koneksi ke database spesifik
+  con_db <- dbConnect(
+    MySQL(),
+    host = db_config$host,
+    port = db_config$port,
+    user = db_config$user,
+    password = db_config$password,
+    dbname = db_config$dbname
+  )
+  
+  # Function untuk mendapatkan detail struktur tabel
+  get_table_structure <- function(table_name) {
+    structure <- dbGetQuery(con_db, paste("DESCRIBE", table_name))
+    foreign_keys <- dbGetQuery(con_db, sprintf("
+      SELECT 
+        COLUMN_NAME,
+        REFERENCED_TABLE_NAME,
+        REFERENCED_COLUMN_NAME
+      FROM
+        INFORMATION_SCHEMA.KEY_COLUMN_USAGE
+      WHERE
+        TABLE_SCHEMA = '%s'
+        AND TABLE_NAME = '%s'
+        AND REFERENCED_TABLE_NAME IS NOT NULL
+    ", db_config$dbname, table_name))
+    
+    list(
+      structure = structure,
+      foreign_keys = foreign_keys
+    )
+  }
+  
+  # Dapatkan semua tabel
+  tables <- dbGetQuery(con_db, "SHOW TABLES")
+  table_names <- tables[[1]]
+  
+  # Print detailed database structure
+  message("\n=== STRUKTUR DATABASE ===\n")
+  for (table_name in table_names) {
+    message("\nTABEL: ", table_name)
+    structure <- get_table_structure(table_name)
+    
+    message("\nKolom:")
+    print(structure$structure)
+    
+    if (nrow(structure$foreign_keys) > 0) {
+      message("\nForeign Keys:")
+      print(structure$foreign_keys)
+    }
+    
+    # Get row count
+    row_count <- dbGetQuery(con_db, sprintf("SELECT COUNT(*) as count FROM %s", table_name))
+    message("\nJumlah baris: ", row_count$count)
+    
+    # Get sample data
+    if(row_count$count > 0) {
+      sample_data <- dbGetQuery(con_db, sprintf("SELECT * FROM %s LIMIT 3", table_name))
+      message("\nContoh Data:")
+      print(sample_data)
+    }
+    
+    message("\n", paste(rep("-", 50), collapse=""))
+  }
+  
+  # Generate database statistics
+  message("\n=== STATISTIK DATABASE ===\n")
+  for (table_name in table_names) {
+    count <- dbGetQuery(con_db, sprintf("SELECT COUNT(*) as count FROM %s", table_name))
+    message(sprintf("%s: %d records", table_name, count$count))
+  }
+  
+}, error = function(e) {
+  message("Error: ", e$message)
+}, finally = {
+  dbDisconnect(con_db)
+  message("\nKoneksi database ditutup")
+})
+```
+
+```{r}
+dashboardBody(
+    tabItems(
+      # Halaman Beranda
+      tabItem(tabName = "beranda",
+               fluidRow(
+                 box(width = 12, status = "warning",
+                     solidHeader = TRUE, 
+                     h2("Selamat Datang di Dashboard
+                        Electronic Literature!", align =
+                          "center"),
+                     h4("Kelompok 3", align = "center"),
+                
+                     tags$img(src="https://upload.wikimedia.org/wikipedia/commons/6/65/Open_book_nae_02.svg", height = "100px", style="display:block; margin:auto;")
+                 )
+               ),
+      
+      # Halaman Daftar Buku
+      tabItem(tabName = "buku",
+              fluidRow(
+                box(title = "Daftar Buku", width = 12,
+                    status = "info",
+                    DTOutput("tabelBuku"))
+              )
+      ),
+      
+      # Halaman Penulis
+      tabItem(tabName = "penulis",
+              fluidRow(
+                box(title = "Data Penulis", width = 12,
+                    status = "info",
+                    DTOutput("tabelPenulis"))
+              )
+      ),
+      
+      # Halaman Penerbit
+      tabItem(tabName = "penerbit",
+              fluidRow(
+                box(title = "Data Penerbit", width = 12,
+                    status = "info",
+                    DTOutput("tabelPenerbit"))
+              )
+      ),
+      
+      # Halaman Ulasan
+      tabItem(tabName = "ulasan",
+              fluidRow(
+                box(title = "Ulasan Buku", width = 12,
+                    status = "info",
+                    DTOutput("tabelUlasan"))
+              )
+      )
+    )
+  )
+)
+```
+
