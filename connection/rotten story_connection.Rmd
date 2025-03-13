@@ -1,0 +1,136 @@
+---
+title: "dbsql revisi"
+author: "Jasmin Nur Hanifa - M0501241060"
+date: "2025-02-26"
+output: html_document
+---
+
+```{r}
+library(DBI)
+library(RMySQL)
+library(dplyr)
+library(readr)
+library(glue)
+```
+
+```{r}
+# 1. Konfigurasi Database DBngin
+db_config <- list(
+  host = "127.0.0.1",
+  port = 3309,          # Port MySQL di DBngin
+  user = "root",
+  password = "",
+  dbname = "rs_v2"    # Nama database yang akan dibuat
+)
+```
+
+```{r}
+# 2. Membuat koneksi ke MySQL server (tanpa database spesifik)
+con <- dbConnect(
+  MySQL(),
+  host = db_config$host,
+  port = db_config$port,
+  user = db_config$user,
+  password = db_config$password
+)
+
+# 3. Membuat database jika belum ada
+tmp_query <- glue("CREATE DATABASE IF NOT EXISTS {db_config$dbname}")
+if (dbIsValid(con)) {
+  dbExecute(con, tmp_query)
+  dbExecute(con, glue("USE {db_config$dbname}"))
+  message("Database ", db_config$dbname, " berhasil dibuat/ditemukan")
+} else {
+  message("Koneksi ke database gagal.")
+}
+```
+
+## Panggil Dataset
+
+```{r}
+base_path <- "D:\\S2\\MDS\\Praktikum\\Project-mds-klp3\\Data"
+novel <- read.csv(file.path(base_path, "novel.csv"))
+penulis <- read.csv(file.path(base_path, "penulis.csv"))
+penerbit <- read.csv(file.path(base_path, "penerbit.csv"))
+ulasan <- read.csv(file.path(base_path, "ulasan.csv"))
+genre <- read.csv(file.path(base_path, "genre.csv"))
+novel_genre <- read.csv(file.path(base_path, "novel_genre.csv"))
+```
+
+```{r}
+# Aktifkan local_infile jika memiliki akses admin
+tryCatch({
+  dbExecute(con, "SET GLOBAL local_infile = TRUE;")
+}, error = function(e) {
+  message("Gagal mengaktifkan local_infile: ", e$message)
+})
+
+# Simpan dataset ke database
+dbWriteTable(con, "penulis", penulis, overwrite = TRUE, row.names = FALSE)
+dbWriteTable(con, "penerbit", penerbit, overwrite = TRUE, row.names = FALSE)
+dbWriteTable(con, "genre", genre, overwrite = TRUE, row.names = FALSE)
+dbWriteTable(con, "ulasan", ulasan, overwrite = TRUE, row.names = FALSE)
+dbWriteTable(con, "novel", novel, overwrite = TRUE, row.names = FALSE)
+dbWriteTable(con, "novel_genre", novel_genre, overwrite = TRUE, row.names = FALSE)
+```
+
+```{r}
+# 4. Membuat indeks dan constraint foreign key
+alter_columns_query <- "
+ALTER TABLE novel 
+MODIFY id_novel VARCHAR(20),
+MODIFY id_penulis VARCHAR(20),
+MODIFY id_penerbit VARCHAR(20);
+
+ALTER TABLE ulasan 
+MODIFY id_novel VARCHAR(20);
+
+ALTER TABLE novel_genre 
+MODIFY id_novel VARCHAR(20),
+MODIFY id_genre VARCHAR(20);
+
+ALTER TABLE penulis MODIFY id_penulis VARCHAR(20);
+
+ALTER TABLE penerbit MODIFY id_penerbit VARCHAR(20);
+
+ALTER TABLE genre MODIFY id_genre VARCHAR(20);
+"
+
+# Eksekusi perubahan tipe data
+for(q in strsplit(alter_columns_query, ";")[[1]]) {
+  if(nchar(q) > 5) dbExecute(con, q)
+}
+
+primary_key_query <- "
+ALTER TABLE penulis ADD PRIMARY KEY (id_penulis);
+ALTER TABLE penerbit ADD PRIMARY KEY (id_penerbit);
+ALTER TABLE novel ADD PRIMARY KEY (id_novel);
+ALTER TABLE genre ADD PRIMARY KEY (id_genre);
+"
+
+# Eksekusi perubahan
+for(q in strsplit(primary_key_query, ";")[[1]]) {
+  if(nchar(q) > 5) dbExecute(con, q)
+}
+
+query_list <- c(
+  "ALTER TABLE novel ADD FOREIGN KEY (id_penulis) REFERENCES penulis(id_penulis)",
+  "ALTER TABLE novel ADD FOREIGN KEY (id_penerbit) REFERENCES penerbit(id_penerbit)",
+  "ALTER TABLE ulasan ADD FOREIGN KEY (id_novel) REFERENCES novel(id_novel)",
+  "ALTER TABLE novel_genre ADD FOREIGN KEY (id_novel) REFERENCES novel(id_novel)",
+  "ALTER TABLE novel_genre ADD FOREIGN KEY (id_genre) REFERENCES genre(id_genre)"
+)
+
+for(q in query_list) { dbExecute(con, q) }
+```
+
+```{r}
+# 5. Verifikasi tabel
+dbListTables(con)
+```
+
+```{r}
+# Tutup koneksi
+dbDisconnect(con)
+```
+
