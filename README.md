@@ -66,7 +66,7 @@ Jangan cuma baca, jadilah bagian dari komunitas Rotten Story! Eksplor, ulas, dan
 **Struktur Primary Key dan Foreign Key** digunakan untuk membangun hubungan antara tabel **Novel, Penulis, Penerbit, Genre,** dan **Ulasan** dalam database **Rotten Story**. Relasi ini memastikan keterkaitan antar entitas sehingga data dapat terorganisir dengan baik dan mendukung sistem dalam mengelola informasi novel serta interaksi pengguna secara optimal.
 
 <p align="center">
-  <img width="800" height="650" src="image/RI.png">
+  <img width="800" height="650" src="Doc/RI.png">
 </p>
 
 ## 🗃️ ERD
@@ -83,7 +83,7 @@ melalui id_genre entitas genre dn novel dapat terhubung, dan id-penerbit menghub
 entitas novel dan penerbit
 
 <p align="center">
-  <img width="800" height="650" src="image/ERD.png">
+  <img width="800" height="650" src="Doc/ERD.png">
 </p>
 
 ## 📮 Deskripsi Data
