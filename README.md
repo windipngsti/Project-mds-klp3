@@ -160,6 +160,37 @@ Tabel penerbit menyediakan informasi tentang penerbit setiap buku yang tersedia.
 | nama_penerbit    |        text            | nama penerbit    |
 | alamat           |        text            | alamat penerbit  |
 
+### 📂 Struktur Folder
+
+```         
+.
+├── app           
+│   ├── server.R
+|   |── App.R 
+│   └── ui.R      
+├── con           
+│   ├── Rotten_story_connection.rmd
+├── data          
+│   ├── Novel.csv
+│   ├── Penulis.csv
+│   ├── genre.csv
+│   ├── Novel_genre.csv
+│   ├── Peneerbit.csv
+│   ├── Ulasan.csv
+├── doc                           
+│   ├── ERD.svg                   
+│   ├── ERD.png                         
+│   ├── RI.png
+├── images
+│   ├── Rotten story front.png  
+│   ├── windi.png
+│   ├── jasmin.png
+│   ├── Qeis.png
+│   ├── Yekky.png
+│   ├── 2.png
+│   ├── 3.png
+└── README.md       # Dokumentasi utama proyek
+```
 
 ## 🤓: Tim Pengembang 
 
