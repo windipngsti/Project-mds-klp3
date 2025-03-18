@@ -194,11 +194,12 @@ Tabel penerbit menyediakan informasi tentang penerbit setiap buku yang tersedia.
 
 ## 🤓: Tim Pengembang 
 
+-   👼: Database Designer : [Windi Pangesti
+    ](https://github.com/windipngsti) (M0501241022)
 -   🦦:Database Manager : [Jasmin Nur Hanifa
     ](https://github.com/heyitsjasmin) (M0501241060)
 -   🐳:Frontend Developer : [Yeky Abil Nizar
     ](https://github.com/yekyabilnizar) (M0501241043)
 -   🪑:Backend Developer : [A.Ahmad Qeis Tenridapi
     ](https://github.com/qeiz21) (M0501241068)
--   👼: Database Designer : [Windi Pangesti
-    ](https://github.com/windipngsti) (M0501241022)
+
